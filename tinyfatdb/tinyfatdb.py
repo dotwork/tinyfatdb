@@ -123,9 +123,9 @@ def create_db(name, model_data, json_filepath=None, in_memory=True):
     new_db = in_memory or not os.path.exists(json_filepath)
 
     if in_memory:
-        db = TinyFatDB(storage=MemoryStorage, default_table=name, model_data=model_data)
+        db = TinyFatDB(model_data, storage=MemoryStorage, default_table=name)
     else:
-        db = TinyFatDB(json_filepath, default_table=name, model_data=model_data)
+        db = TinyFatDB(model_data, json_filepath, default_table=name)
 
     if new_db:
         db.purge_tables()

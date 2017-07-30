@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """Tests for `tinyfatdb` package."""
-
-
+import json
+import os
 import unittest
+from tempfile import NamedTemporaryFile
 
 from tinydb import Query
 
@@ -28,6 +29,9 @@ class ABCTable(TinyFatTable):
     Example custom table
     """
     model = ABCModel
+
+
+ABC_MODEL_DATA = dict(ABC=dict(model=ABCModel, table_class=ABCTable))
 
 
 ########################################################################
@@ -295,3 +299,38 @@ class TestFatModels(BaseTestMixin):
         self.foo.insert({"short": "a", "medium": "aa", "long": "aaa"})
         entry = list(self.foo.index("short"))[0]
         self.assertEqual(3, entry.longest())
+
+
+########################################################################
+class TestCreateDB(unittest.TestCase):
+
+    ####################################################################
+    def setUp(self):
+        data = {
+            "ABC": {
+                "1": {"a": 1}
+            }
+        }
+        self.json_file = NamedTemporaryFile(suffix=".json", delete=False)
+        self.json_file.write(json.dumps(data).encode("utf-8"))
+        self.json_file.flush()
+        self.json_file.close()
+
+    ####################################################################
+    def tearDown(self):
+        os.unlink(self.json_file.name)
+
+    ####################################################################
+    def test_create_db_from_json(self):
+        db = create_db("ABC", ABC_MODEL_DATA, json_filepath=self.json_file.name, in_memory=False)
+        self.assertEqual(1, len(db))
+        db.insert({"a": 2})
+        data = json.loads(open(self.json_file.name).read())
+        expected = {
+            'ABC':
+                {
+                    '1': {'a': 1},
+                    '2': {'a': 2},
+                }
+        }
+        self.assertEqual(expected, data)
