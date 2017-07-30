@@ -2,7 +2,7 @@
 import os
 
 from tinydb import TinyDB
-from tinydb.database import Table, StorageProxy
+from tinydb.database import Table
 from tinydb.storages import MemoryStorage
 from tinydb.utils import itervalues
 from tinyindex import Index
@@ -16,12 +16,19 @@ if not os.path.exists(MODELS_DIR):
 class TinyFatDB(TinyDB):
 
     ####################################################################
-    def __init__(self, model_data, *args, **kwargs):
-        self.model_data = model_data
+    def __init__(self, table_class, *args, **kwargs):
+        """
+
+
+        :param table_class:
+        :param args:
+        :param kwargs:
+        """
+        self.default_table_class = self.table_class = table_class
         super(TinyFatDB, self).__init__(*args, **kwargs)
 
     ####################################################################
-    def table(self, name=TinyDB.DEFAULT_TABLE, **options):
+    def table(self, name=TinyDB.DEFAULT_TABLE, table_class=None, **options):
         """
         Get access to a specific table.
 
@@ -30,29 +37,26 @@ class TinyFatDB(TinyDB):
 
         :param name: The name of the table.
         :type name: str
+        :param table_class: A subclass of TinyFatTable
         :param cache_size: How many query results to cache.
         """
-
-        if name in self._table_cache:
-            return self._table_cache[name]
-
-        table_class = self.model_data[name]["table_class"]
-        model = self.model_data[name]["model"]
-        table_class.model = model
-
-        table = table_class(StorageProxy(self._storage, name), **options)
-
-        self._table_cache[name] = table
-
-        # table._read will create an empty table in the storage, if necessary
-        table._read()
-
+        self.table_class = table_class or self.default_table_class
+        table = super(TinyFatDB, self).table(name, **options)
+        self.table_class = self.default_table_class
         return table
 
 
 ########################################################################
+class TinyFatModel(dict):
+    """
+
+    """
+    eid = None
+
+
+########################################################################
 class TinyFatTable(Table):
-    model = None
+    model = TinyFatModel
 
     ###################################################################
     def _transform(self, data):
@@ -116,16 +120,16 @@ class TinyFatTable(Table):
 
 
 ########################################################################
-def create_db(name, model_data, json_filepath=None, in_memory=True):
+def create_db(name=TinyDB.DEFAULT_TABLE, table_class=TinyFatTable, json_filepath=None, in_memory=True):
     if not json_filepath:
         filename = "{name}.json".format(name=name.lower())
         json_filepath = os.path.join(MODELS_DIR, filename)
     new_db = in_memory or not os.path.exists(json_filepath)
 
     if in_memory:
-        db = TinyFatDB(model_data, storage=MemoryStorage, default_table=name)
+        db = TinyFatDB(table_class, default_table=name, storage=MemoryStorage)
     else:
-        db = TinyFatDB(model_data, json_filepath, default_table=name)
+        db = TinyFatDB(table_class, json_filepath, default_table=name)
 
     if new_db:
         db.purge_tables()
