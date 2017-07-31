@@ -7,8 +7,9 @@ from tempfile import NamedTemporaryFile
 from unittest import TestCase
 
 from tinydb import Query as Q, TinyDB
+from tinydb.storages import MemoryStorage
 
-from tinyfatdb.tinyfatdb import create_db, TinyFatTable
+from tinyfatdb.tinyfatdb import create_db, TinyFatTable, TinyFatDB
 
 
 ########################################################################
@@ -206,6 +207,15 @@ class BaseTableAndModelTest:
 
 
 ########################################################################
+class TestManualDBCreation(TestCase, BaseTableAndModelTest):
+
+    ####################################################################
+    def setUp(self):
+        super(TestManualDBCreation, self).setUp()
+        self.db = TinyFatDB(default_table="ABC", table_class=ABCTable, storage=MemoryStorage)
+
+
+########################################################################
 class TestDefaultTableAndModel(TestCase, BaseTableAndModelTest):
     """
     Tests to ensure original TinyDB and TinyFatTable functions work
@@ -351,10 +361,14 @@ class TestCreateDB(TestCase):
 
     ####################################################################
     def test_create_db_from_json(self):
-        db = create_db("ABC", table_class=ABCTable, json_filepath=self.json_file.name, in_memory=False)
+        with open(self.json_file.name) as f:
+            data = json.loads(f.read())
+        print(data)
+        db = create_db(json_filepath=self.json_file.name, name="ABC", table_class=ABCTable, in_memory=False)
         self.assertEqual(1, len(db))
         db.insert({"a": 2})
-        data = json.loads(open(self.json_file.name).read())
+        with open(self.json_file.name) as f:
+            data = json.loads(f.read())
         expected = {
             'ABC': {
                 '1': {'a': 1},

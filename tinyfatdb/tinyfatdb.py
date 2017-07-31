@@ -16,19 +16,18 @@ if not os.path.exists(MODELS_DIR):
 class TinyFatDB(TinyDB):
 
     ####################################################################
-    def __init__(self, table_class, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         """
 
-
-        :param table_class:
         :param args:
         :param kwargs:
         """
-        self.default_table_class = self.table_class = table_class
+        self.default_table_name = kwargs.get("default_table", TinyDB.DEFAULT_TABLE)
+        self.default_table_class = kwargs.pop("table_class", TinyFatTable)
         super(TinyFatDB, self).__init__(*args, **kwargs)
 
     ####################################################################
-    def table(self, name=TinyDB.DEFAULT_TABLE, table_class=None, **options):
+    def table(self, name=None, table_class=None, **options):
         """
         Get access to a specific table.
 
@@ -40,6 +39,7 @@ class TinyFatDB(TinyDB):
         :param table_class: A subclass of TinyFatTable
         :param cache_size: How many query results to cache.
         """
+        name = name or self.default_table_name
         self.table_class = table_class or self.default_table_class
         table = super(TinyFatDB, self).table(name, **options)
         self.table_class = self.default_table_class
@@ -127,9 +127,9 @@ def create_db(name=TinyDB.DEFAULT_TABLE, table_class=TinyFatTable, json_filepath
     new_db = in_memory or not os.path.exists(json_filepath)
 
     if in_memory:
-        db = TinyFatDB(table_class, default_table=name, storage=MemoryStorage)
+        db = TinyFatDB(storage=MemoryStorage, default_table=name, table_class=table_class)
     else:
-        db = TinyFatDB(table_class, json_filepath, default_table=name)
+        db = TinyFatDB(json_filepath, default_table=name, table_class=table_class)
 
     if new_db:
         db.purge_tables()
