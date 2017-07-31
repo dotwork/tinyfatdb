@@ -27,7 +27,7 @@ class TinyFatDB(TinyDB):
         super(TinyFatDB, self).__init__(*args, **kwargs)
 
     ####################################################################
-    def table(self, name=None, table_class=None, **options):
+    def table(self, name=None, table=None, **options):
         """
         Get access to a specific table.
 
@@ -36,11 +36,11 @@ class TinyFatDB(TinyDB):
 
         :param name: The name of the table.
         :type name: str
-        :param table_class: A subclass of TinyFatTable
+        :param table: A subclass of TinyFatTable
         :param cache_size: How many query results to cache.
         """
         name = name or self.default_table_name
-        self.table_class = table_class or self.default_table_class
+        self.table_class = table or self.default_table_class
         table = super(TinyFatDB, self).table(name, **options)
         self.table_class = self.default_table_class
         return table
@@ -120,16 +120,16 @@ class TinyFatTable(Table):
 
 
 ########################################################################
-def create_db(name=TinyDB.DEFAULT_TABLE, table_class=TinyFatTable, json_filepath=None, in_memory=True):
-    if not json_filepath:
-        filename = "{name}.json".format(name=name.lower())
-        json_filepath = os.path.join(MODELS_DIR, filename)
-    new_db = in_memory or not os.path.exists(json_filepath)
+def create_db(*args, name=TinyDB.DEFAULT_TABLE, table=TinyFatTable):
+    try:
+        db_path = args[0]
+    except IndexError:
+        db_path = None
 
-    if in_memory:
-        db = TinyFatDB(storage=MemoryStorage, default_table=name, table_class=table_class)
-    else:
-        db = TinyFatDB(json_filepath, default_table=name, table_class=table_class)
+    new_db = db_path is None or os.path.exists(db_path) is False
+    storage = MemoryStorage if db_path is None else TinyDB.DEFAULT_STORAGE
+
+    db = TinyFatDB(*args, storage=storage, default_table=name, table_class=table)
 
     if new_db:
         db.purge_tables()

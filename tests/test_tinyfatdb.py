@@ -55,7 +55,7 @@ class BaseTableAndModelTest:
 
     ####################################################################
     def test_purge_tables(self):
-        self.db.table("Foo", table_class=FooTable)
+        self.db.table("Foo", table=FooTable)
         self.db.purge_tables()
         self.assertEqual(set(), self.db.tables())
 
@@ -207,15 +207,6 @@ class BaseTableAndModelTest:
 
 
 ########################################################################
-class TestManualDBCreation(TestCase, BaseTableAndModelTest):
-
-    ####################################################################
-    def setUp(self):
-        super(TestManualDBCreation, self).setUp()
-        self.db = TinyFatDB(default_table="ABC", table_class=ABCTable, storage=MemoryStorage)
-
-
-########################################################################
 class TestDefaultTableAndModel(TestCase, BaseTableAndModelTest):
     """
     Tests to ensure original TinyDB and TinyFatTable functions work
@@ -228,12 +219,12 @@ class TestDefaultTableAndModel(TestCase, BaseTableAndModelTest):
 
     ####################################################################
     def test_add_table(self):
-        self.db.table("Foo", table_class=FooTable)
+        self.db.table("Foo", table=FooTable)
         self.assertEqual({'Foo', TinyDB.DEFAULT_TABLE}, self.db.tables())
 
     ####################################################################
     def test_purge_table(self):
-        self.db.table("Foo", table_class=FooTable)
+        self.db.table("Foo", table=FooTable)
         self.db.purge_table("Foo")
         self.assertEqual({TinyDB.DEFAULT_TABLE}, self.db.tables())
 
@@ -248,16 +239,16 @@ class TestCustomTableAndModel(TestCase, BaseTableAndModelTest):
     ####################################################################
     def setUp(self):
         super(TestCustomTableAndModel, self).setUp()
-        self.db = create_db("ABC", table_class=ABCTable)
+        self.db = create_db(name="ABC", table=ABCTable)
 
     ####################################################################
     def test_add_table(self):
-        self.db.table("Foo", table_class=FooTable)
+        self.db.table("Foo", table=FooTable)
         self.assertEqual({"Foo", "ABC"}, self.db.tables())
 
     ####################################################################
     def test_purge_table(self):
-        self.db.table("Foo", table_class=FooTable)
+        self.db.table("Foo", table=FooTable)
         self.db.purge_table("Foo")
         self.assertEqual({"ABC"}, self.db.tables())
 
@@ -272,8 +263,8 @@ class TestFatModels(TestCase):
     ####################################################################
     def setUp(self):
         super(TestFatModels, self).setUp()
-        self.abc = create_db("ABC", table_class=ABCTable)
-        self.foo = self.abc.table("Foo", table_class=FooTable)
+        self.abc = create_db(name="ABC", table=ABCTable)
+        self.foo = self.abc.table(name="Foo", table=FooTable)
 
     ####################################################################
     def test_default_table_via_get(self):
@@ -361,10 +352,7 @@ class TestCreateDB(TestCase):
 
     ####################################################################
     def test_create_db_from_json(self):
-        with open(self.json_file.name) as f:
-            data = json.loads(f.read())
-        print(data)
-        db = create_db(json_filepath=self.json_file.name, name="ABC", table_class=ABCTable, in_memory=False)
+        db = create_db(self.json_file.name, name="ABC", table=ABCTable)
         self.assertEqual(1, len(db))
         db.insert({"a": 2})
         with open(self.json_file.name) as f:
@@ -376,3 +364,25 @@ class TestCreateDB(TestCase):
             }
         }
         self.assertEqual(expected, data)
+
+    ####################################################################
+    def test_create_db_manually_from_json(self):
+        db = TinyFatDB(self.json_file.name, default_table="ABC", table_class=ABCTable)
+        self.assertEqual(1, len(db))
+        db.insert({"a": 2})
+        with open(self.json_file.name) as f:
+            data = json.loads(f.read())
+        expected = {
+            'ABC': {
+                '1': {'a': 1},
+                '2': {'a': 2},
+            }
+        }
+        self.assertEqual(expected, data)
+
+    ####################################################################
+    def test_create_db_manually(self):
+        db = TinyFatDB(default_table="ABC", table_class=ABCTable, storage=MemoryStorage)
+        table = db.table("ABC")
+        self.assertTrue(isinstance(table, ABCTable))
+        self.assertTrue(isinstance(db._storage, MemoryStorage))
