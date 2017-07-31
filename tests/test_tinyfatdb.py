@@ -51,10 +51,6 @@ class FooTable(TinyFatTable):
 
 ########################################################################
 class BaseTableAndModelTest:
-    """
-    Tests to ensure original TinyDB and TinyFatTable functions work
-    with default TinyFatDB, TinyFatTable, and TinyFatModel classes.
-    """
 
     ####################################################################
     def test_purge_tables(self):
@@ -211,6 +207,10 @@ class BaseTableAndModelTest:
 
 ########################################################################
 class TestDefaultTableAndModel(TestCase, BaseTableAndModelTest):
+    """
+    Tests to ensure original TinyDB and TinyFatTable functions work
+    with default TinyFatDB, TinyFatTable, and TinyFatModel classes.
+    """
 
     ####################################################################
     def setUp(self):
