@@ -49,13 +49,19 @@ class TinyFatDB(TinyDB):
 ########################################################################
 class TinyFatModel(dict):
     """
-
+    Base/default model class.
+    Holds a single entry from a TinyFatDB table and enables adding methods
+    to the entry data/dictionary in a "fat models" style.
     """
     eid = None
 
 
 ########################################################################
 class TinyFatTable(Table):
+    """
+    Base/default table class. Inherit's from TinyDB's Table model and
+    handles loading database entries into model classes.
+    """
     model = TinyFatModel
 
     ###################################################################
