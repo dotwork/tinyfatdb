@@ -474,17 +474,17 @@ class TestTinyFatQueryset(TestCase):
         self.db.remove(match_all_elements)
         queryset = self.db.all()
 
-        values = tuple(queryset.values())
-        self.assertEqual((), values)
-
         values = tuple(queryset.values("a"))
         self.assertEqual((), values)
+
+        with self.assertRaises(ValueError):
+            values = tuple(queryset.values())
 
     ####################################################################
     def test_values__no_args(self):
         queryset = self.db.all()
-        values = tuple(queryset.values())
-        self.assertEqual(self.entries, values)
+        with self.assertRaises(ValueError):
+            tuple(queryset.values())
 
     ####################################################################
     def test_values__single_arg(self):

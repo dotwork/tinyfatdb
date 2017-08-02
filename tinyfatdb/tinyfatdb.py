@@ -159,8 +159,7 @@ class TinyFatQueryset:
             for el in self.elements:
                 yield {f: el[f] for f in fields}
         else:
-            for el in self.elements:
-                yield copy.deepcopy(el)
+            raise ValueError("Must provide one or more fields as argument to {}.values".format(self.__class__))
 
     ####################################################################
     def values_list(self, *fields):
