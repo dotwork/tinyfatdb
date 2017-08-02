@@ -125,10 +125,7 @@ class TinyFatQueryset:
     @property
     def elements(self):
         for el in self._elements:
-            if isinstance(el, self.model):
-                yield el
-            else:
-                yield self.model(el)
+            yield self.model(el)
 
     ####################################################################
     @property
