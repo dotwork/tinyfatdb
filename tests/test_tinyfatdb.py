@@ -478,7 +478,7 @@ class TestTinyFatQueryset(TestCase):
         self.assertEqual((), values)
 
         with self.assertRaises(ValueError):
-            values = tuple(queryset.values())
+            tuple(queryset.values())
 
     ####################################################################
     def test_values__no_args(self):
