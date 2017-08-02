@@ -171,8 +171,7 @@ class BaseTableAndModelTest:
             {"a": 1, "b": 2, "c": 3},
             {"b": 2, "c": 3},
         )
-        self.db.insert_multiple(entries)
-
+        self.insert_entries(entries)
         index = self.db.index('a')
         self.assertEqual(entries[:-1], tuple(index))
         self.assertEqual([], index.unindexed)
@@ -190,7 +189,7 @@ class BaseTableAndModelTest:
             {"a": 1, "b": 2, "c": 3},
             {"b": 2, "c": 3},
         )
-        self.db.insert_multiple(entries)
+        self.insert_entries(entries)
 
         index = self.db.index('a')
         self.assertEqual(entries[:-1], tuple(index))
@@ -210,7 +209,7 @@ class BaseTableAndModelTest:
             {"a": 1, "b": 2, "c": 3},
             {"a": 1, "b": 2, "c": 3},
         )
-        self.db.insert_multiple(entries)
+        self.insert_entries(entries)
 
         index = self.db.index('a', 'b', save_unindexed=True)
 
@@ -325,19 +324,19 @@ class TestFatModels(TestCase):
     ####################################################################
     def test_additional_table_via_all(self):
         self.foo.insert({"short": "a", "medium": "aa", "long": "aaa"})
-        entry = list(self.foo.all())[0]
+        entry = tuple(self.foo.all())[0]
         self.assertEqual(3, entry.longest())
 
     ####################################################################
     def test_additional_table_via_search(self):
         self.foo.insert({"short": "a", "medium": "aa", "long": "aaa"})
-        entry = list(self.foo.search(Q().short == "a"))[0]
+        entry = tuple(self.foo.search(Q().short == "a"))[0]
         self.assertEqual(3, entry.longest())
 
     ####################################################################
     def test_additional_table_via_index(self):
         self.foo.insert({"short": "a", "medium": "aa", "long": "aaa"})
-        entry = list(self.foo.index("short"))[0]
+        entry = tuple(self.foo.index("short"))[0]
         self.assertEqual(3, entry.longest())
 
 

@@ -155,7 +155,7 @@ class TinyFatTable(Table):
     ###################################################################
     def search(self, query):
         for data in super(TinyFatTable, self).search(query):
-            yield self._transform(data)
+            yield self.model(data)
 
     ###################################################################
     def get(self, cond=None, eid=None):
