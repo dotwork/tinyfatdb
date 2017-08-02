@@ -1,0 +1,38 @@
+{
+    "_meta": {
+        "hash": {
+            "sha256": "2acbf27022a450d8e98d1242aa770b7e9fcb21909cde83ce485eb15d753f1810"
+        },
+        "requires": {},
+        "sources": [
+            {
+                "url": "https://pypi.python.org/simple",
+                "verify_ssl": true
+            }
+        ]
+    },
+    "default": {
+        "pbr": {
+            "version": "==3.1.1"
+        },
+        "six": {
+            "version": "==1.10.0"
+        },
+        "stevedore": {
+            "version": "==1.25.0"
+        },
+        "tinydb": {
+            "version": "==3.3.1"
+        },
+        "virtualenv": {
+            "version": "==15.1.0"
+        },
+        "virtualenv-clone": {
+            "version": "==0.2.6"
+        },
+        "virtualenvwrapper": {
+            "version": "==4.7.2"
+        }
+    },
+    "develop": {}
+}
