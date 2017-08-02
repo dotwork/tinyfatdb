@@ -125,7 +125,23 @@ class TinyFatQueryset:
     @property
     def elements(self):
         for el in self._elements:
-            yield self.model(el)
+            if isinstance(el, self.model):
+                yield el
+            else:
+                yield self.model(el)
+
+    ####################################################################
+    @property
+    def eids(self):
+        return tuple(self.values_list("eid"))
+
+    ####################################################################
+    def refresh_from_db(self):
+        eids = self.eids
+        self._elements = self.table.get_by_eids(eids=eids)
+        if self.cond:
+            self.table.clear_cache()
+            self._elements = self.search(self.cond)
 
     ####################################################################
     @property
