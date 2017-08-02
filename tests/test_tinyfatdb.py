@@ -9,7 +9,7 @@ from unittest import TestCase
 from tinydb import Query as Q, TinyDB
 from tinydb.storages import MemoryStorage
 
-from tinyfatdb.tinyfatdb import create_db, TinyFatTable, TinyFatDB, match_all
+from tinyfatdb.tinyfatdb import create_db, TinyFatTable, TinyFatDB, match_all_elements
 
 
 ########################################################################
@@ -156,7 +156,7 @@ class BaseTableAndModelTest:
     ####################################################################
     def test_first(self):
         self.assertEqual(self.entries[0], self.db.first())
-        self.db.remove(match_all)
+        self.db.remove(match_all_elements)
         self.assertEqual(None, self.db.first())
 
     ####################################################################
@@ -164,7 +164,7 @@ class BaseTableAndModelTest:
         """
         Should return the 3 entries with key 'a'.
         """
-        self.db.remove(match_all)
+        self.db.remove(match_all_elements)
         entries = (
             {"a": 1, "b": 2, "c": 3},
             {"a": 1, "b": 2, "c": 3},
@@ -174,7 +174,6 @@ class BaseTableAndModelTest:
         self.insert_entries(entries)
         index = self.db.index('a')
         self.assertEqual(entries[:-1], tuple(index))
-        self.assertEqual([], index.unindexed)
 
     ####################################################################
     def test_unindexed(self):
@@ -182,18 +181,18 @@ class BaseTableAndModelTest:
         Should return the 3 entries with key 'a'.
         Index.unindexed should contain the entry with no key 'a'.
         """
-        self.db.remove(match_all)
+        self.db.remove(match_all_elements)
         entries = (
             {"a": 1, "b": 2, "c": 3},
             {"a": 1, "b": 2, "c": 3},
             {"a": 1, "b": 2, "c": 3},
-            {"b": 2, "c": 3},
         )
         self.insert_entries(entries)
+        eid = self.db.insert({"b": 2, "c": 3})
+        element = self.db.get(eid=eid)
 
-        index = self.db.index('a')
-        self.assertEqual(entries[:-1], tuple(index))
-        self.assertEqual([], index.unindexed)
+        queryset = self.db.unindexed('a')
+        self.assertEqual((element, ), tuple(queryset))
 
     ####################################################################
     def test_multiple_indexes(self):
@@ -202,7 +201,7 @@ class BaseTableAndModelTest:
         Index.unindexed should contain a list with the entries do not
         contain both keys 'a' and 'b'.
         """
-        self.db.remove(match_all)
+        self.db.remove(match_all_elements)
         entries = (
             {"b": 2, "c": 3},
             {"a": 1, "c": 3},
@@ -210,11 +209,8 @@ class BaseTableAndModelTest:
             {"a": 1, "b": 2, "c": 3},
         )
         self.insert_entries(entries)
-
-        index = self.db.index('a', 'b', save_unindexed=True)
-
+        index = self.db.index('a', 'b')
         self.assertEqual(entries[2:], tuple(index))
-        self.assertEqual(entries[:2], tuple(index.unindexed))
 
 
 ########################################################################
@@ -416,7 +412,7 @@ class TestTinyFatQueryset(TestCase):
 
     ####################################################################
     def test_qty(self):
-        self.db.remove(TinyFatTable.match_all)
+        self.db.remove(match_all_elements)
 
         queryset = self.db.all()
         self.assertEqual(0, queryset.qty())
@@ -430,10 +426,44 @@ class TestTinyFatQueryset(TestCase):
         self.assertEqual(2, queryset.qty())
 
     ####################################################################
-    def test_search(self):
+    def test_refresh_from_db(self):
         queryset = self.db.all()
-        elements = queryset.search(a_ends_with_2)
-        self.assertEqual(self.entries[1], elements[0])
+        self.assertEqual(self.entries, tuple(queryset))
+
+        self.db.update({"a": "foo"}, eids=[self.db.first().eid])
+        self.assertEqual(self.entries, tuple(queryset))
+
+        queryset.refresh_from_db()
+        self.assertEqual("foo", tuple(queryset)[0]["a"])
+
+    ####################################################################
+    def test_search(self):
+        # Add an entry to get back 2 results
+        entry = {"a": "AA2"}
+        eid = self.db.insert(entry)
+        new_element = self.db.get(eid=eid)
+        all_queryset = self.db.all()
+
+        # Search should produce queryset with existing entry ending in "2" and new entry
+        queryset_1 = all_queryset.search(a_ends_with_2)
+        elements = tuple(queryset_1)
+        expected_elements = (self.entries[1], new_element)
+        self.assertEqual(expected_elements, elements)
+
+        # Modify new element
+        self.db.update({"a": "foo"}, eids=[new_element.eid])
+        # Search should still provide 2 entries because queryset is not updated
+        queryset_2 = queryset_1.search(a_ends_with_2)
+        elements = tuple(queryset_2)
+        expected_elements = (self.entries[1], new_element)
+        self.assertEqual(expected_elements, elements)
+
+        # Refresh queryset
+        queryset_2.refresh_from_db()
+        # Should return only 1 entry now that the updated entry has been refreshed from the database
+        elements = tuple(queryset_2)
+        expected_elements = (self.entries[1], )
+        self.assertEqual(expected_elements, elements)
 
     ####################################################################
     def test_first(self):
@@ -441,12 +471,8 @@ class TestTinyFatQueryset(TestCase):
         self.assertEqual(self.entries[0], queryset.first())
 
     ####################################################################
-    # def test_list(self):
-    #     self.fail()
-
-    ####################################################################
     def test_values__no_elements(self):
-        self.db.remove(TinyFatTable.match_all)
+        self.db.remove(match_all_elements)
         queryset = self.db.all()
 
         values = tuple(queryset.values())
