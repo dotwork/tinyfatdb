@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import copy
 import os
 
 from tinydb import TinyDB
@@ -55,6 +56,87 @@ class TinyFatModel(dict):
     """
     eid = None
 
+    ###################################################################
+    def __init__(self, element, **kwargs):
+        """
+        Load data from database into the model associated with the
+        current instance.
+        :param data: Element object from TinyDB
+        :return: instance of self.model loaded with the given data and it's eid.
+        """
+        super(TinyFatModel, self).__init__(element, **kwargs)
+        self.eid = self["eid"] = element.eid
+
+
+########################################################################
+class TinyFatQueryset:
+
+    ####################################################################
+    def __init__(self, elements, model):
+        self.model = model
+        self._elements = tuple(elements)
+
+    ####################################################################
+    def __len__(self):
+        return len(self._elements)
+
+    ####################################################################
+    def __eq__(self, other):
+        return tuple(self._elements) == tuple(other)
+
+    ####################################################################
+    def __iter__(self):
+        return self.elements
+
+    ####################################################################
+    def __getitem__(self, item):
+        return tuple(self.elements)[item]
+
+    ####################################################################
+    @property
+    def elements(self):
+        for el in self._elements:
+            yield self.model(el)
+
+    ####################################################################
+    def qty(self):
+        return len(self)
+
+    ####################################################################
+    def first(self):
+        return self[0]
+
+    ####################################################################
+    def search(self, cond):
+        elements = (el for el in self.elements if cond(el))
+        return TinyFatQueryset(elements, self.model)
+
+    ####################################################################
+    def values(self, *fields):
+        if fields:
+            for el in self.elements:
+                yield {f: el[f] for f in fields}
+        else:
+            for el in self.elements:
+                yield copy.deepcopy(el)
+
+    ####################################################################
+    def values_list(self, *fields):
+        assert fields, "Must provide field names when calling TinyFatQueryset.values_list."
+
+        if len(fields) == 1:
+            field = fields[0]
+            for el in self.elements:
+                yield el[field]
+        else:
+            for el in self.elements:
+                yield tuple(el[f] for f in fields)
+
+
+########################################################################
+def match_all(self):
+    return True
+
 
 ########################################################################
 class TinyFatTable(Table):
@@ -63,23 +145,12 @@ class TinyFatTable(Table):
     handles loading database entries into model classes.
     """
     model = TinyFatModel
+    match_all = match_all
 
     ###################################################################
-    def _transform(self, data):
-        """
-        Load data from database into the model associated with the
-        current instance.
-        :param data: Element object from TinyDB
-        :return: instance of self.model loaded with the given data and it's eid.
-        """
-        if data is not None:
-            # Create a model with the data
-            model = self.model(data)
-
-            # Store the model's eid
-            model.eid = data.eid
-
-            return model
+    def __init__(self, storage, cache_size=10):
+        super(TinyFatTable, self).__init__(storage, cache_size=cache_size)
+        self.fields = set()
 
     ###################################################################
     def search(self, query):
@@ -89,11 +160,13 @@ class TinyFatTable(Table):
     ###################################################################
     def get(self, cond=None, eid=None):
         element = super(TinyFatTable, self).get(cond, eid)
-        return self._transform(element)
+        if element:
+            return self.model(element)
 
     ###################################################################
     def all(self):
-        return (self._transform(data) for data in super(TinyFatTable, self).all())
+        elements = super(TinyFatTable, self).all()
+        return TinyFatQueryset(elements, model=self.model)
 
     ###################################################################
     def count(self, cond):
@@ -122,7 +195,7 @@ class TinyFatTable(Table):
     ####################################################################
     def first(self):
         for entry in itervalues(super(TinyFatTable, self)._read()):
-            return self._transform(entry)
+            return self.model(entry)
 
 
 ########################################################################

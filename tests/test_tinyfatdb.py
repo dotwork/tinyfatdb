@@ -9,7 +9,7 @@ from unittest import TestCase
 from tinydb import Query as Q, TinyDB
 from tinydb.storages import MemoryStorage
 
-from tinyfatdb.tinyfatdb import create_db, TinyFatTable, TinyFatDB
+from tinyfatdb.tinyfatdb import create_db, TinyFatTable, TinyFatDB, match_all
 
 
 ########################################################################
@@ -51,7 +51,21 @@ class FooTable(TinyFatTable):
 
 
 ########################################################################
+a_ends_with_2 = Q().a.test(lambda a: a.endswith("2"))
+
+
+########################################################################
 class BaseTableAndModelTest:
+    _entries = ({"a": "A1", "b": "B1", "c": "C1"},
+                {"a": "A2", "b": "B2", "c": "C2"},
+                {"a": "A3", "b": "B3", "c": "C3"})
+
+    ####################################################################
+    def insert_entries(self, entries):
+        eids = self.db.insert_multiple(entries)
+        for entry in entries:
+            entry.update({"eid": eids.pop(0)})
+        return entries
 
     ####################################################################
     def test_purge_tables(self):
@@ -61,65 +75,61 @@ class BaseTableAndModelTest:
 
     ####################################################################
     def test_insert(self):
-        self.assertEqual(0, len(self.db))
-        self.db.insert({"a": 1})
-        self.assertEqual(1, len(self.db))
+        self.assertEqual(len(self.entries), len(self.db))
+        self.db.insert({})
+        self.assertEqual(len(self.entries) + 1, len(self.db))
 
     ####################################################################
     def test_insert_multiple(self):
-        self.assertEqual(0, len(self.db))
-        self.db.insert_multiple([{"a": 1}, {"a": 1}])
-        self.assertEqual(2, len(self.db))
+        self.assertEqual(len(self.entries), len(self.db))
+        self.db.insert_multiple(({}, {}))
+        self.assertEqual(len(self.entries) + 2, len(self.db))
 
     ####################################################################
     def test_all(self):
-        entries = [{"a": 1}, {"a": 1}]
-        self.db.insert_multiple(entries)
-        self.assertEqual(entries, list(self.db.all()))
+        self.assertEqual(self.entries, tuple(self.db.all()))
 
     ####################################################################
     def test_get_by_eid(self):
-        entry = {"a": 1}
-        eid = self.db.insert(entry)
-        self.assertEqual(entry, self.db.get(eid=eid))
+        entry = self.entries[0]
+        self.assertEqual(entry, self.db.get(eid=entry["eid"]))
 
     ####################################################################
     def test_get_by_condition(self):
-        entries = [{"a": 1}, {"a": 2}, {"a": 3}]
-        self.db.insert_multiple(entries)
-        self.assertEqual({"a": 2}, self.db.get(Q().a > 1))
+        self.assertEqual(self.entries[1], self.db.get(a_ends_with_2))
 
     ####################################################################
     def test_count(self):
-        self.db.insert_multiple([{"a": 1}, {"a": 2}])
-        self.assertEqual(1, self.db.count(Q().a > 1))
+        self.assertEqual(1, self.db.count(Q().a == "A1"))
+        self.assertEqual(3, self.db.count(Q().a.test(lambda val: "A" in val)))
 
     ####################################################################
     def test_contains_by_eid(self):
-        eid = self.db.insert({"a": 1})
+        good_eid = self.entries[0]["eid"]
         bad_eid = 72
-        self.assertTrue(self.db.contains(eids=[eid, bad_eid]))
+        self.assertTrue(self.db.contains(eids=[bad_eid, good_eid]))
         self.assertFalse(self.db.contains(eids=[bad_eid]))
 
     ####################################################################
     def test_contains_by_condition(self):
-        self.db.insert_multiple([{"a": 1}, {"a": 2}])
-        self.assertTrue(self.db.contains(Q().a > 1))
-        self.assertFalse(self.db.contains(Q().a > 2))
+        self.assertTrue(self.db.contains(a_ends_with_2))
+        self.assertFalse(self.db.contains(Q().a == "foo"))
 
     ####################################################################
     def test_remove_by_eid(self):
-        eid = self.db.insert({"a": 1})
-        self.db.remove(eids=[eid])
+        self.assertEqual(3, len(self.db))
+        self.db.remove(eids=[self.entries[0]["eid"]])
+        self.assertEqual(2, len(self.db))
+        self.db.remove(eids=[self.entries[1]["eid"], self.entries[2]["eid"]])
         self.assertEqual(0, len(self.db))
 
     ####################################################################
     def test_remove_by_condition(self):
-        self.db.insert_multiple([{"a": 1}, {"a": 2}])
-        self.db.remove(Q().a > 1)
-        entries = list(self.db)
-        self.assertEqual(1, len(entries))
-        self.assertEqual({"a": 1}, entries[0])
+        self.assertEqual(3, len(self.db))
+        self.db.remove(Q().a == "A1")
+        self.assertEqual(2, len(self.db))
+        self.db.remove(Q().a.test(lambda val: val in ("A2", "A3")))
+        self.assertEqual(0, len(self.db))
 
     ####################################################################
     def test_update_by_eids(self):
@@ -135,36 +145,36 @@ class BaseTableAndModelTest:
 
     ####################################################################
     def test_update_by_condition(self):
-        self.db.insert_multiple([{"a": 1}, {"a": -1}])
 
-        def make_absolute(e):
-            e["a"] = abs(e["a"])
+        def lower(val):
+            val["a"] = val["a"].lower()
 
-        self.db.update(make_absolute, cond=Q().a < 0)
+        self.db.update(lower, cond=Q().a.test(lambda val: "A" in val))
         for entry in self.db:
-            self.assertEqual({"a": 1}, entry)
+            self.assertTrue("a" in entry["a"])
 
     ####################################################################
     def test_first(self):
+        self.assertEqual(self.entries[0], self.db.first())
+        self.db.remove(match_all)
         self.assertEqual(None, self.db.first())
-        self.db.insert_multiple([{"a": 1}, {"a": -1}])
-        self.assertEqual({"a": 1}, self.db.first())
 
     ####################################################################
     def test_index(self):
         """
         Should return the 3 entries with key 'a'.
         """
-        entries = [
+        self.db.remove(match_all)
+        entries = (
             {"a": 1, "b": 2, "c": 3},
             {"a": 1, "b": 2, "c": 3},
             {"a": 1, "b": 2, "c": 3},
             {"b": 2, "c": 3},
-        ]
+        )
         self.db.insert_multiple(entries)
 
         index = self.db.index('a')
-        self.assertEqual(entries[:-1], list(index))
+        self.assertEqual(entries[:-1], tuple(index))
         self.assertEqual([], index.unindexed)
 
     ####################################################################
@@ -173,16 +183,17 @@ class BaseTableAndModelTest:
         Should return the 3 entries with key 'a'.
         Index.unindexed should contain the entry with no key 'a'.
         """
-        entries = [
+        self.db.remove(match_all)
+        entries = (
             {"a": 1, "b": 2, "c": 3},
             {"a": 1, "b": 2, "c": 3},
             {"a": 1, "b": 2, "c": 3},
             {"b": 2, "c": 3},
-        ]
+        )
         self.db.insert_multiple(entries)
 
         index = self.db.index('a')
-        self.assertEqual(entries[:-1], list(index))
+        self.assertEqual(entries[:-1], tuple(index))
         self.assertEqual([], index.unindexed)
 
     ####################################################################
@@ -192,18 +203,19 @@ class BaseTableAndModelTest:
         Index.unindexed should contain a list with the entries do not
         contain both keys 'a' and 'b'.
         """
-        entries = [
+        self.db.remove(match_all)
+        entries = (
             {"b": 2, "c": 3},
             {"a": 1, "c": 3},
             {"a": 1, "b": 2, "c": 3},
             {"a": 1, "b": 2, "c": 3},
-        ]
+        )
         self.db.insert_multiple(entries)
 
         index = self.db.index('a', 'b', save_unindexed=True)
 
-        self.assertEqual(entries[2:], list(index))
-        self.assertEqual(entries[:2], index.unindexed)
+        self.assertEqual(entries[2:], tuple(index))
+        self.assertEqual(entries[:2], tuple(index.unindexed))
 
 
 ########################################################################
@@ -216,6 +228,7 @@ class TestDefaultTableAndModel(TestCase, BaseTableAndModelTest):
     ####################################################################
     def setUp(self):
         self.db = create_db()
+        self.entries = self.insert_entries(self._entries)
 
     ####################################################################
     def test_add_table(self):
@@ -240,6 +253,7 @@ class TestCustomTableAndModel(TestCase, BaseTableAndModelTest):
     def setUp(self):
         super(TestCustomTableAndModel, self).setUp()
         self.db = create_db(name="ABC", table=ABCTable)
+        self.entries = self.insert_entries(self._entries)
 
     ####################################################################
     def test_add_table(self):
@@ -386,3 +400,117 @@ class TestCreateDB(TestCase):
         table = db.table("ABC")
         self.assertTrue(isinstance(table, ABCTable))
         self.assertTrue(isinstance(db._storage, MemoryStorage))
+
+
+########################################################################
+class TestTinyFatQueryset(TestCase):
+
+    ####################################################################
+    def setUp(self):
+        self.db = create_db()
+        self.entries = ({"a": "A1", "b": "B1", "c": "C1"},
+                        {"a": "A2", "b": "B2", "c": "C2"},
+                        {"a": "A3", "b": "B3", "c": "C3"})
+        eids = self.db.insert_multiple(self.entries)
+        for entry in self.entries:
+            entry.update({"eid": eids.pop(0)})
+
+    ####################################################################
+    def test_qty(self):
+        self.db.remove(TinyFatTable.match_all)
+
+        queryset = self.db.all()
+        self.assertEqual(0, queryset.qty())
+
+        self.db.insert({})
+        queryset = self.db.all()
+        self.assertEqual(1, queryset.qty())
+
+        self.db.insert({})
+        queryset = self.db.all()
+        self.assertEqual(2, queryset.qty())
+
+    ####################################################################
+    def test_search(self):
+        queryset = self.db.all()
+        elements = queryset.search(a_ends_with_2)
+        self.assertEqual(self.entries[1], elements[0])
+
+    ####################################################################
+    def test_first(self):
+        queryset = self.db.all()
+        self.assertEqual(self.entries[0], queryset.first())
+
+    ####################################################################
+    # def test_list(self):
+    #     self.fail()
+
+    ####################################################################
+    def test_values__no_elements(self):
+        self.db.remove(TinyFatTable.match_all)
+        queryset = self.db.all()
+
+        values = tuple(queryset.values())
+        self.assertEqual((), values)
+
+        values = tuple(queryset.values("a"))
+        self.assertEqual((), values)
+
+    ####################################################################
+    def test_values__no_args(self):
+        queryset = self.db.all()
+        values = tuple(queryset.values())
+        self.assertEqual(self.entries, values)
+
+    ####################################################################
+    def test_values__single_arg(self):
+        queryset = self.db.all()
+        values = tuple(queryset.values("a"))
+        expected_values = ({"a": "A1"}, {"a": "A2"}, {"a": "A3"})
+        self.assertEqual(expected_values, values)
+
+    ####################################################################
+    def test_values__eid(self):
+        queryset = self.db.all()
+        values = tuple(queryset.values("eid"))
+        expected_values = ({"eid": 1}, {"eid": 2}, {"eid": 3})
+        self.assertEqual(expected_values, values)
+
+    ####################################################################
+    def test_values__multiple_args(self):
+        queryset = self.db.all()
+        values = tuple(queryset.values("a", "c"))
+        expected_values = ({"a": "A1", "c": "C1"},
+                           {"a": "A2", "c": "C2"},
+                           {"a": "A3", "c": "C3"})
+        self.assertEqual(expected_values, values)
+
+    ####################################################################
+    def test_values_list__single_arg(self):
+        queryset = self.db.all()
+        values = tuple(queryset.values_list("a"))
+        self.assertEqual(("A1", "A2", "A3"), values)
+
+    ####################################################################
+    def test_values_list__multiple_args(self):
+        queryset = self.db.all()
+        values = tuple(queryset.values_list("a", "c"))
+        expected_values = (("A1", "C1"), ("A2", "C2"), ("A3", "C3"))
+        self.assertEqual(expected_values, values)
+
+    ####################################################################
+    def test_values_list__no_args(self):
+        queryset = self.db.all()
+
+        with self.assertRaises(AssertionError):
+            tuple(queryset.values_list())
+
+        with self.assertRaises(AssertionError):
+            for entry in queryset.values_list():
+                print(entry)
+
+    ####################################################################
+    def test_values_list__no_matching_values(self):
+        queryset = self.db.all()
+        with self.assertRaises(KeyError):
+            tuple(queryset.values_list("foo"))
