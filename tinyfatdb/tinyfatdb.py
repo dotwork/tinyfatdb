@@ -128,11 +128,6 @@ class TinyFatQueryset:
             yield self.model(el)
 
     ####################################################################
-    @property
-    def eids(self):
-        return tuple(self.values_list("eid"))
-
-    ####################################################################
     def refresh_from_db(self):
         eids = self.eids
         self._elements = self.table.get_by_eids(eids=eids)
@@ -144,14 +139,6 @@ class TinyFatQueryset:
     @property
     def eids(self):
         return tuple(self.values_list("eid"))
-
-    ####################################################################
-    def refresh_from_db(self):
-        eids = self.eids
-        self._elements = self.table.get_by_eids(eids=eids)
-        if self.cond:
-            self.table.clear_cache()
-            self._elements = self.search(self.cond)
 
     ####################################################################
     def qty(self):
