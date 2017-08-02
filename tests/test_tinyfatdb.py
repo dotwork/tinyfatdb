@@ -178,8 +178,7 @@ class BaseTableAndModelTest:
     ####################################################################
     def test_unindexed(self):
         """
-        Should return the 3 entries with key 'a'.
-        Index.unindexed should contain the entry with no key 'a'.
+        Should return a queryset with the entry with no key 'a'.
         """
         self.db.remove(match_all_elements)
         entries = (

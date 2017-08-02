@@ -16,12 +16,26 @@ if not os.path.exists(MODELS_DIR):
 ########################################################################
 @contextmanager
 def mock_all(table, elements):
+    """
+    Mocks the TinyFatDB.all method to return the given elements.
+    Used by TinyFatQueryset to limit searches performed on the queryset
+    to the elements stored on the instances '_elements' attribute.
+
+    :param table: an instance of TinyFatTable
+    :param elements: an iterable of Element objects
+    """
     table.all = lambda: elements
     yield
 
 
 ########################################################################
 class TinyFatDB(TinyDB):
+    """
+    Manages handling of TinyFatTable classes when creating new tables
+    in the database. Stores the default table class on the
+    attribute 'default_table_class', and handles additional custom
+    tables when creating new tables via the TinyFatDB.table method.
+    """
 
     ####################################################################
     def __init__(self, *args, **kwargs):
@@ -45,7 +59,6 @@ class TinyFatDB(TinyDB):
         :param name: The name of the table.
         :type name: str
         :param table: A subclass of TinyFatTable
-        :param cache_size: How many query results to cache.
         """
         name = name or self.default_table_name
         self.table_class = table or self.default_table_class
@@ -60,16 +73,15 @@ class TinyFatModel(dict):
     Base/default model class.
     Holds a single entry from a TinyFatDB table and enables adding methods
     to the entry data/dictionary in a "fat models" style.
+    Also adds the 'eid' as a key/value pair on the element.
     """
     eid = None
 
     ###################################################################
     def __init__(self, element, **kwargs):
         """
-        Load data from database into the model associated with the
-        current instance.
+        Load data from database into the current model instance.
         :param data: Element object from TinyDB
-        :return: instance of self.model loaded with the given data and it's eid.
         """
         super(TinyFatModel, self).__init__(element, **kwargs)
         self.eid = self["eid"] = element.eid
@@ -77,6 +89,14 @@ class TinyFatModel(dict):
 
 ########################################################################
 class TinyFatQueryset:
+    """
+    All TinyFatTable methods that can return more than one element return
+    an instance of TinyFatQueryset.
+    Provides methods for performing further searches on the contained
+    data, and other convenience methods including the ability to "refresh"
+    the contained data from the database.
+    Can be subclassed to add additional custom methods.
+    """
 
     ####################################################################
     def __init__(self, table, elements, **kwargs):
