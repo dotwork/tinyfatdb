@@ -474,67 +474,49 @@ class TestTinyFatQueryset(TestCase):
         self.db.remove(match_all_elements)
         queryset = self.db.all()
 
-        values = tuple(queryset.values("a"))
+        values = tuple(queryset.data("a"))
         self.assertEqual((), values)
 
         with self.assertRaises(ValueError):
-            tuple(queryset.values())
+            tuple(queryset.data())
 
     ####################################################################
     def test_values__no_args(self):
         queryset = self.db.all()
         with self.assertRaises(ValueError):
-            tuple(queryset.values())
+            tuple(queryset.data())
 
     ####################################################################
     def test_values__single_arg(self):
         queryset = self.db.all()
-        values = tuple(queryset.values("a"))
+        values = tuple(queryset.data("a"))
         expected_values = ({"a": "A1"}, {"a": "A2"}, {"a": "A3"})
         self.assertEqual(expected_values, values)
 
     ####################################################################
     def test_values__eid(self):
         queryset = self.db.all()
-        values = tuple(queryset.values("eid"))
+        values = tuple(queryset.data("eid"))
         expected_values = ({"eid": 1}, {"eid": 2}, {"eid": 3})
         self.assertEqual(expected_values, values)
 
     ####################################################################
     def test_values__multiple_args(self):
         queryset = self.db.all()
-        values = tuple(queryset.values("a", "c"))
+        values = tuple(queryset.data("a", "c"))
         expected_values = ({"a": "A1", "c": "C1"},
                            {"a": "A2", "c": "C2"},
                            {"a": "A3", "c": "C3"})
         self.assertEqual(expected_values, values)
 
     ####################################################################
-    def test_values_list__single_arg(self):
+    def test_values_list(self):
         queryset = self.db.all()
-        values = tuple(queryset.values_list("a"))
+        values = queryset.values("a")
         self.assertEqual(("A1", "A2", "A3"), values)
 
     ####################################################################
-    def test_values_list__multiple_args(self):
-        queryset = self.db.all()
-        values = tuple(queryset.values_list("a", "c"))
-        expected_values = (("A1", "C1"), ("A2", "C2"), ("A3", "C3"))
-        self.assertEqual(expected_values, values)
-
-    ####################################################################
-    def test_values_list__no_args(self):
-        queryset = self.db.all()
-
-        with self.assertRaises(AssertionError):
-            tuple(queryset.values_list())
-
-        with self.assertRaises(AssertionError):
-            for entry in queryset.values_list():
-                print(entry)
-
-    ####################################################################
-    def test_values_list__no_matching_values(self):
+    def test_values_list__missing_field(self):
         queryset = self.db.all()
         with self.assertRaises(KeyError):
-            tuple(queryset.values_list("foo"))
+            queryset.values("foo")

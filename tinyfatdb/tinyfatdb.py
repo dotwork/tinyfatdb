@@ -129,8 +129,11 @@ class TinyFatQueryset:
 
     ####################################################################
     def refresh_from_db(self):
-        eids = self.eids
-        self._elements = self.table.get_by_eids(eids=eids)
+        """
+        Re-fetches fresh instances of all database entries
+        stored in self._elements
+        """
+        self._elements = self.table.get_by_eids(eids=self.eids)
         if self.cond:
             self.table.clear_cache()
             self._elements = self.search(self.cond)
@@ -138,7 +141,7 @@ class TinyFatQueryset:
     ####################################################################
     @property
     def eids(self):
-        return tuple(self.values_list("eid"))
+        return tuple(self.values("eid"))
 
     ####################################################################
     def qty(self):
@@ -150,11 +153,25 @@ class TinyFatQueryset:
 
     ####################################################################
     def search(self, cond):
+        """
+        Performs TinyDB.search, limiting the search to the elements stored
+        on the '_elements' attribute.
+        :param cond: TinyDB.Query instance.
+        :return: TinyFatQueryset instance of matching elements.
+        """
         with mock_all(self.table, self.elements):
             return self.table.search(cond)
 
     ####################################################################
-    def values(self, *fields):
+    def data(self, *fields):
+        """
+        Produces a generator of dictionaries with key/value pairs
+        for each element in the queryset, containing only the fields
+        provided in the 'fields' argument.
+
+        :param fields: iterable of table field names
+        :return: generator of dictionaries.
+        """
         if fields:
             for el in self.elements:
                 yield {f: el[f] for f in fields}
@@ -162,16 +179,15 @@ class TinyFatQueryset:
             raise ValueError("Must provide one or more fields as argument to {}.values".format(self.__class__))
 
     ####################################################################
-    def values_list(self, *fields):
-        assert fields, "Must provide field names when calling TinyFatQueryset.values_list."
+    def values(self, field):
+        """
+        Produces a generator that yields the value for the given field
+        for each element in the queryset.
 
-        if len(fields) == 1:
-            field = fields[0]
-            for el in self.elements:
-                yield el[field]
-        else:
-            for el in self.elements:
-                yield tuple(el[f] for f in fields)
+        :param field: Table field name
+        :return: generator of values for the given field.
+        """
+        return tuple(el[field] for el in self.elements)
 
 
 ########################################################################
