@@ -38,11 +38,6 @@ class TinyFatDB(TinyDB):
 
     ####################################################################
     def __init__(self, *args, **kwargs):
-        """
-
-        :param args:
-        :param kwargs:
-        """
         self.default_table_name = kwargs.get("default_table", TinyDB.DEFAULT_TABLE)
         self.default_table_class = kwargs.pop("table_class", TinyFatTable)
         super(TinyFatDB, self).__init__(*args, **kwargs)
@@ -140,7 +135,7 @@ class TinyFatQueryset:
     ####################################################################
     @property
     def eids(self):
-        return tuple(self.values("eid"))
+        return self.values("eid")
 
     ####################################################################
     def qty(self):
@@ -164,12 +159,12 @@ class TinyFatQueryset:
     ####################################################################
     def data(self, *fields):
         """
-        Produces a generator of dictionaries with key/value pairs
+        Produces a dictionary with eid/element key/value pairs
         for each element in the queryset, containing only the fields
         provided in the 'fields' argument.
 
         :param fields: iterable of table field names
-        :return: generator of dictionaries.
+        :return: dictionary
         """
         if fields:
             element_data = {}
@@ -183,11 +178,11 @@ class TinyFatQueryset:
     ####################################################################
     def values(self, field):
         """
-        Produces a generator that yields the value for the given field
-        for each element in the queryset.
+        Produces a tuple of values for the given field for
+        each element in the queryset.
 
         :param field: Table field name
-        :return: generator of values for the given field.
+        :return: tuple of values for the given field.
         """
         return tuple(el[field] for el in self.elements)
 
@@ -212,22 +207,48 @@ class TinyFatTable(Table):
 
     ###################################################################
     def search(self, cond):
+        """
+        Wraps TinyDB's Table.search method with a TinyFatQueryset.
+
+        :param cond: TinyDB Query instance
+        :return: TinyFatQueryset instance
+        """
         elements = (el for el in super(TinyFatTable, self).search(cond))
         return TinyFatQueryset(self, elements, cond=cond)
 
     ###################################################################
     def get(self, cond=None, eid=None):
+        """
+        Wraps TinyDB's Table.get method to return an instance of the
+        associated TinyFatModel class.
+
+        :param cond: TinyDB Query instance
+        :param eid: TinyDB Element eid
+        :return: TinyFatModel instance
+        """
         element = super(TinyFatTable, self).get(cond, eid)
         if element:
             return self.model(element)
 
     ###################################################################
     def get_by_eids(self, eids):
+        """
+        Returns a TinyFatQueryset of elements matching the given eids.
+
+        :param eids: iterable of Element eids
+        :return: TinyFatQueryset
+        """
         elements = (self.get(eid=eid) for eid in eids)
         return TinyFatQueryset(self, elements)
 
     ###################################################################
     def all(self):
+        """
+        Wrapper around TinyDB's Table.all method that returns a
+        TinyFatQueryset of all elements contained in table.
+
+        :return: TinyFatQueryset
+        """
         elements = super(TinyFatTable, self).all()
         return TinyFatQueryset(self, elements)
 
@@ -244,23 +265,35 @@ class TinyFatTable(Table):
     ###################################################################
     def index(self, *fields):
         """
-        Returns an Index instance (from package TinyIndex) that acts as a
-        generator for all entries that include the given args in its keys.
+        Returns a TinyFatQueryset containing all elements in the table
+        that include the given fields in its keys.
 
-        :param fields: dictionary keys that should be included in all indexed entries.
-        :return: Index instance
+        :param fields: table fields that should be included in all indexed entries.
+        :return: TinyFatQueryset instance
         """
-
         elements = (el for el in self if all(f in el for f in fields))
         return TinyFatQueryset(self, elements)
 
     ###################################################################
     def unindexed(self, *fields):
+        """
+        Returns a TinyFatQueryset containing all elements in the table
+        that do _not_ include the given fields in its keys.
+
+        :param fields: Table fields that should be excluded in all indexed entries.
+        Will match element if any of the given fields are missing.
+
+        :return: TinyFatQueryset instance
+        """
         elements = (el for el in self if not all(f in el for f in fields))
         return TinyFatQueryset(self, elements)
 
     ####################################################################
     def first(self):
+        """
+        Convenience method to return the first item in the table.
+        :return: TinyFatModel instance
+        """
         for entry in itervalues(super(TinyFatTable, self)._read()):
             return self.model(entry)
 
