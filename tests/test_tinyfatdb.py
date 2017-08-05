@@ -489,25 +489,32 @@ class TestTinyFatQueryset(TestCase):
     ####################################################################
     def test_values__single_arg(self):
         queryset = self.db.all()
-        values = tuple(queryset.data("a"))
-        expected_values = ({"a": "A1"}, {"a": "A2"}, {"a": "A3"})
-        self.assertEqual(expected_values, values)
+        expected_data = {
+            1: {"a": "A1"},
+            2: {"a": "A2"},
+            3: {"a": "A3"}
+        }
+        self.assertEqual(expected_data, queryset.data("a"))
 
     ####################################################################
     def test_values__eid(self):
         queryset = self.db.all()
-        values = tuple(queryset.data("eid"))
-        expected_values = ({"eid": 1}, {"eid": 2}, {"eid": 3})
-        self.assertEqual(expected_values, values)
+        expected_data = {
+            1: {"eid": 1},
+            2: {"eid": 2},
+            3: {"eid": 3},
+        }
+        self.assertEqual(expected_data, queryset.data("eid"))
 
     ####################################################################
     def test_values__multiple_args(self):
         queryset = self.db.all()
-        values = tuple(queryset.data("a", "c"))
-        expected_values = ({"a": "A1", "c": "C1"},
-                           {"a": "A2", "c": "C2"},
-                           {"a": "A3", "c": "C3"})
-        self.assertEqual(expected_values, values)
+        expected_data = {
+            1: {"a": "A1", "c": "C1"},
+            2: {"a": "A2", "c": "C2"},
+            3: {"a": "A3", "c": "C3"}
+        }
+        self.assertEqual(expected_data, queryset.data("a", "c"))
 
     ####################################################################
     def test_values_list(self):

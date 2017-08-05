@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import copy
 import os
 from contextlib import contextmanager
 
@@ -173,8 +172,11 @@ class TinyFatQueryset:
         :return: generator of dictionaries.
         """
         if fields:
+            element_data = {}
             for el in self.elements:
-                yield {f: el[f] for f in fields}
+                data = {f: el[f] for f in fields}
+                element_data[el.eid] = data
+            return element_data
         else:
             raise ValueError("Must provide one or more fields as argument to {}.values".format(self.__class__))
 
