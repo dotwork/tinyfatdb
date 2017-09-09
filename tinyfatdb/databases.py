@@ -1,3 +1,4 @@
+import os
 from .tables import TinyFatTable
 from tinydb import TinyDB
 from tinydb.storages import MemoryStorage
@@ -38,7 +39,7 @@ class TinyFatDB(TinyDB):
 
     ########################################################################
     @classmethod
-    def create_db(cls, *args, name=TinyDB.DEFAULT_TABLE, table=TinyFatTable):
+    def create(cls, *args, name=TinyDB.DEFAULT_TABLE, table=TinyFatTable):
         try:
             db_path = args[0]
         except IndexError:

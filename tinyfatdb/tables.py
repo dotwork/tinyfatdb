@@ -39,8 +39,7 @@ class TinyFatTable(Table):
         :return: TinyFatModel instance
         """
         element = super(TinyFatTable, self).get(cond, eid)
-        if element:
-            return self.model(element)
+        return self.model(element) if element else None
 
     ###################################################################
     def get_by_eids(self, eids):
