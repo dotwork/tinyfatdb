@@ -3,11 +3,7 @@ TinyFatDB
 =========
 
 
-<aside class="notice">
 This package is not under active development and is not production-ready.
-</aside>
-
-
 Provides subclasses of TinyDB's Table, and TinyDB classes to support "fat model" style programming. See the tests for examples.
 
 * Free software: MIT license
